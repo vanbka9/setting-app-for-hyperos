@@ -42,7 +42,7 @@ jobs:
           payload-dumper-go -l firmware/payload.bin
         elif tar -tzf firmware.tgz | grep -q 'images/system.img'; then
           echo "Найден system.img, обрабатываем system.img"
-          tar -xzf firmware.tgz images/system.img -C firmware
+          tar -xzf firmware.tgz /images/system.img -C firmware
           mkdir -p /mnt/system_img
           sudo mount -o loop firmware/images/system.img /mnt/system_img
         elif tar -tzf firmware.tgz | grep -q 'images/super.img'; then
