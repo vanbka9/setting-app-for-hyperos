@@ -29,7 +29,7 @@ jobs:
     - name: Download firmware
       run: |
         wget -O firmware.tgz ${{ github.event.inputs.firmware_url }}
-        tar -xzvf firmware.tgz -d firmware
+        tar -xzvf firmware.tgz -C firmware
 
     - name: Locate and extract system_ext.img
       run: |
