@@ -1,0 +1,57 @@
+name: Extract Settings APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      firmware_url:
+        description: 'URL to the firmware zip file'
+        required: true
+        default: 'https://example.com/firmware.zip'  # Замените на URL по умолчанию
+
+jobs:
+  extract-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          wget \
+          unzip \
+          android-tools-fsutils \
+          erofs-utils
+
+    - name: Download firmware
+      run: |
+        wget -O firmware.zip ${{ github.event.inputs.firmware_url }}
+        unzip firmware.zip -d firmware
+
+    - name: Locate and extract system_ext.img
+      run: |
+        # Предполагаем, что образ находится в распакованной папке
+        mv firmware/path/to/system_ext.img ./system_ext.img
+
+    - name: Convert sparse image (if needed)
+      run: |
+        if file ./system_ext.img | grep -q "sparse"; then
+          simg2img ./system_ext.img ./converted.img
+        else
+          cp ./system_ext.img ./converted.img
+        fi
+
+    - name: Mount image and extract settings.apk
+      run: |
+        mkdir -p ./mnt
+        sudo mount -o loop ./converted.img ./mnt
+        cp ./mnt/priv-app/Settings/Settings.apk ./settings.apk
+        sudo umount ./mnt
+
+    - name: Upload settings.apk
+      uses: actions/upload-artifact@v2
+      with:
+        name: settings-apk
+        path: ./settings.apk
