@@ -6,7 +6,7 @@ on:
       firmware_url:
         description: 'URL to the firmware zip file'
         required: true
-        default: 'https://example.com/firmware.zip'
+        default: 'https://example.com/firmware.zip_or_firmware.tgz'
 
 jobs:
   extract-apk:
@@ -25,15 +25,41 @@ jobs:
           unzip \
           android-sdk-libsparse-utils \
           erofs-utils
+        wget https://github.com/ssut/payload-dumper-go/releases/download/1.2.2/payload-dumper-go_1.2.2_linux_amd64.tar.gz
+        mkdir ./dumper
+        tar -xzvf payload-dumper-go_1.2.2_linux_amd64.tar.gz -C ./dumper
+        chmod +x ./dumper/payload-dumper-go
 
     - name: Download firmware
       run: |
         wget -O firmware.tgz ${{ github.event.inputs.firmware_url }}
-        tar -xzvf firmware.tgz -C firmware
-
-    - name: Locate and extract system_ext.img
+        
+    - name: Проверка содержимого архива
       run: |
-        mv firmware/system_ext_a.img ./system_ext.img
+        if tar -tzf firmware.tgz | grep -q 'payload.bin'; then
+          echo "Найден payload.bin, запускаем обработку payload-dumper"
+          tar -xzf firmware.tgz payload.bin -C firmware
+          payload-dumper-go -l firmware/payload.bin
+        elif tar -tzf firmware.tgz | grep -q 'images/system.img'; then
+          echo "Найден system.img, обрабатываем system.img"
+          tar -xzf firmware.tgz images/system.img -C firmware
+          mkdir -p /mnt/system_img
+          sudo mount -o loop firmware/images/system.img /mnt/system_img
+        elif tar -tzf firmware.tgz | grep -q 'images/super.img'; then
+          echo "Найден super.img, обрабатываем super.img"
+          tar -xzf firmware.tgz /images/super.img -C firmware
+          mkdir -p /mnt/super_img
+          sudo mount -o loop firmware/images/super.img /mnt/super_img
+          if [[ -f /mnt/super_img/system_ext.img || -f /mnt/super_img/system_ext_a.img || -f /mnt/super_img/system_ext_b.img ]]; then
+            echo "Найден system_ext.img"
+            mkdir -p /mnt/system_ext
+            sudo mount -o loop /mnt/super_img/system_ext_a.img /mnt/system_ext
+            cp /mnt/system_ext/priv-app/Settings/Settings.apk ./settings.apk
+          fi
+        else
+          echo "Не удалось найти нужные файлы"
+          exit 1
+        fi
 
     - name: Convert sparse image (if needed)
       run: |
@@ -42,13 +68,6 @@ jobs:
         else
           cp ./system_ext.img ./converted.img
         fi
-
-    - name: Mount image and extract settings.apk
-      run: |
-        mkdir -p ./mnt
-        sudo mount -o loop ./converted.img ./mnt
-        cp ./mnt/priv-app/Settings/Settings.apk ./settings.apk
-        sudo umount ./mnt
 
     - name: Upload settings.apk
       uses: actions/upload-artifact@v3
