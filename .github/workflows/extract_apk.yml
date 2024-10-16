@@ -6,7 +6,7 @@ on:
       firmware_url:
         description: 'URL to the firmware zip file'
         required: true
-        default: 'https://example.com/firmware.zip'  # Замените на URL по умолчанию
+        default: 'https://example.com/firmware.zip'
 
 jobs:
   extract-apk:
@@ -14,7 +14,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Install dependencies
       run: |
@@ -32,8 +32,7 @@ jobs:
 
     - name: Locate and extract system_ext.img
       run: |
-        # Предполагаем, что образ находится в распакованной папке
-        mv firmware/path/to/system_ext.img ./system_ext.img
+        mv firmware/system_ext_a.img ./system_ext.img
 
     - name: Convert sparse image (if needed)
       run: |
