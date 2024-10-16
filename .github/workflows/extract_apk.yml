@@ -21,14 +21,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y \
           wget \
+          tar \
           unzip \
-          android-tools-fsutils \
+          android-sdk-libsparse-utils \
           erofs-utils
 
     - name: Download firmware
       run: |
-        wget -O firmware.zip ${{ github.event.inputs.firmware_url }}
-        unzip firmware.zip -d firmware
+        wget -O firmware.tgz ${{ github.event.inputs.firmware_url }}
+        tar -xzvf firmware.tgz -d firmware
 
     - name: Locate and extract system_ext.img
       run: |
