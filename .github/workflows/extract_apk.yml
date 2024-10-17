@@ -6,7 +6,7 @@ on:
       firmware_url:
         description: 'URL to the firmware zip file'
         required: true
-        default: 'https://example.com/firmware.zip_or_firmware.tgz'
+        default: 'https://example.com/firmware.zip_or_tgz'
 
 jobs:
   extract-apk:
@@ -32,35 +32,34 @@ jobs:
 
     - name: Download firmware
       run: |
-        wget -O firmware.tgz ${{ github.event.inputs.firmware_url }}
-        
-    - name: Проверка содержимого архива
+        wget ${{ github.event.inputs.firmware_url }}
+        FILENAME=$(ls -t | head -n1)
+        echo "Downloaded file: $FILENAME"
+
+    - name: Check files in archive
       run: |
-        if tar -tzf firmware.tgz | grep -q 'payload.bin'; then
-          echo "Найден payload.bin, запускаем обработку payload-dumper"
-          tar -xzf firmware.tgz payload.bin -C firmware
-          payload-dumper-go -l firmware/payload.bin
-        elif tar -tzf firmware.tgz | grep -q 'images/system.img'; then
-          echo "Найден system.img, обрабатываем system.img"
-          tar -xzf firmware.tgz /images/system.img -C firmware
-          mkdir -p /mnt/system_img
-          sudo mount -o loop firmware/images/system.img /mnt/system_img
-        elif tar -tzf firmware.tgz | grep -q 'images/super.img'; then
-          echo "Найден super.img, обрабатываем super.img"
-          tar -xzf firmware.tgz /images/super.img -C firmware
-          mkdir -p /mnt/super_img
-          sudo mount -o loop firmware/images/super.img /mnt/super_img
-          if [[ -f /mnt/super_img/system_ext.img || -f /mnt/super_img/system_ext_a.img || -f /mnt/super_img/system_ext_b.img ]]; then
-            echo "Найден system_ext.img"
-            mkdir -p /mnt/system_ext
-            sudo mount -o loop /mnt/super_img/system_ext_a.img /mnt/system_ext
-            cp /mnt/system_ext/priv-app/Settings/Settings.apk ./settings.apk
-          fi
-        else
-          echo "Не удалось найти нужные файлы"
-          exit 1
+        find_file_in_archive() {
+          local archive=$1
+          local filename=$2
+          tar -tvf "$archive" | grep "$FILENAME" | awk '{print $6}'
+        }
+
+        FILE_PATH=$(find_file_in_archive "$FILENAME" "super.img")
+        echo $FILE_PATH
+
+        if [ -z "$FILE_PATH" ]; then
+          FILE_PATH=$(find_file_in_archive "$FILENAME" "payload.bin")
+          echo $FILE_PATH
         fi
 
+        if [ -n "$FILE_PATH" ]; then
+          echo "Extract file: $FILE_PATH"
+          tar --strip-components=$(echo "$FILE_PATH" | grep -o "/" | wc -l) -xvf "$FILENAME" "$FILE_PATH"
+          ls -Alt
+        else
+          echo "Files not found"
+          exit 1
+        fi
     - name: Convert sparse image (if needed)
       run: |
         if file ./system_ext.img | grep -q "sparse"; then
@@ -69,8 +68,32 @@ jobs:
           cp ./system_ext.img ./converted.img
         fi
 
+    - name: Mount image
+      run: |
+        mkdir -p /mnt/super_img
+        sudo mount -o loop ./converted.img /mnt/super_img
+        if [[ -f /mnt/super_img/system_ext_a.img ]]; then
+          echo "Found system_ext_a.img"
+          mkdir -p /mnt/system_ext
+          sudo mount -o loop /mnt/super_img/system_ext_a.img /mnt/system_ext
+          
+          cp /mnt/system_ext/priv-app/Settings/Settings.apk ./settings.apk
+        fi
+        else
+          echo "Can't find files"
+          exit 1
+        fi
+
     - name: Upload settings.apk
       uses: actions/upload-artifact@v3
       with:
-        name: settings-apk
+        code_name=$(echo "$FILENAME" | sed -E 's/miui_([A-Za-z]+)[^_]*.*/\1/')
+        region=$(echo "$FILENAME" | sed -E 's/.*_OS[0-9]+\.[0-9]+\.[0-9]+\.[A-Z]+([[:alpha:]]{2,3}).*/\1/')
+        rom_code=$(echo "$FILENAME" | sed -E 's/.*_OS([0-9]+\.[0-9]+\.[0-9]+\.[A-Z0-9]+).*/\1/')
+        new_file_name="Settings_${code_name}_${region}_from_OS${rom_code}.apk"
+        echo "$new_file_name"
+
+
+
+        name: $new_file_name
         path: ./settings.apk
