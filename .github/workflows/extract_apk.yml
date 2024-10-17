@@ -84,16 +84,16 @@ jobs:
           exit 1
         fi
 
-    - name: Upload settings.apk
-      uses: actions/upload-artifact@v3
-      with:
+    - name: Parse settings name
+      run: |
         code_name=$(echo "$FILENAME" | sed -E 's/miui_([A-Za-z]+)[^_]*.*/\1/')
         region=$(echo "$FILENAME" | sed -E 's/.*_OS[0-9]+\.[0-9]+\.[0-9]+\.[A-Z]+([[:alpha:]]{2,3}).*/\1/')
         rom_code=$(echo "$FILENAME" | sed -E 's/.*_OS([0-9]+\.[0-9]+\.[0-9]+\.[A-Z0-9]+).*/\1/')
         new_file_name="Settings_${code_name}_${region}_from_OS${rom_code}.apk"
         echo "$new_file_name"
 
-
-
+    - name: Upload settings.apk
+      uses: actions/upload-artifact@v3
+      with:
         name: $new_file_name
         path: ./settings.apk
