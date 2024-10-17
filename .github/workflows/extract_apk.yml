@@ -33,6 +33,7 @@ jobs:
     - name: Download firmware
       run: |
         wget ${{ github.event.inputs.firmware_url }}
+        sleep 10
         FILENAME=$(ls -t | head -n1)
         echo "Downloaded file: $FILENAME"
 
