@@ -34,6 +34,7 @@ jobs:
       run: |
         wget ${{ github.event.inputs.firmware_url }}
         sleep 10
+        ls -t
         FILENAME=$(ls -t | head -n1)
         echo "Downloaded file: $FILENAME"
 
