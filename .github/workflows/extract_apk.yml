@@ -33,13 +33,13 @@ jobs:
     - name: Download firmware
       run: |
         wget ${{ github.event.inputs.firmware_url }}
-        sleep 10
-        ls -t
-        FILENAME=$(ls -t | head -n1)
+        
         echo "Downloaded file: $FILENAME"
 
     - name: Check files in archive
       run: |
+        ls -Alt
+        FILENAME=$(ls -t | head -n1)
         find_file_in_archive() {
           local archive=$1
           local filename=$2
