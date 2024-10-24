@@ -38,8 +38,8 @@ jobs:
 
     - name: Check files in archive
       run: |
-        ls -Alt
-        FILENAME=$(ls -t | head -n1)
+        find . -maxdepth 1 -type f -printf '%T@ %p\n' | sort -n | tail -n 1 | cut -d' ' -f2
+        FILENAME=$(find . -maxdepth 1 -type f -printf '%T@ %p\n' | sort -n | tail -n 1 | cut -d' ' -f2)
         find_file_in_archive() {
           local archive=$1
           local filename=$2
